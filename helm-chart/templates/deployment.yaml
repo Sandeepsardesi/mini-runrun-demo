@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mini-runrun
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mini-runrun
+  template:
+    metadata:
+      labels:
+        app: mini-runrun
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.25-alpine
+          ports:
+            - containerPort: 80
