@@ -5,7 +5,7 @@ metadata:
   labels:
     app: mini-runrun-backend
 spec:
-  replicas: 5
+  replicas: 3X
   selector:
     matchLabels:
       app: mini-runrun-backend
