@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: mini-runrun
 spec:
-  replicas: 5
+  replicas: 4
   selector:
     matchLabels:
       app: mini-runrun
