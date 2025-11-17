@@ -39,66 +39,40 @@ All infrastructure and application changes flow through Git, ensuring traceabili
 
 ## Key Features
 
-### 1. Containerized Microservices
+1. Containerized Microservices
 
 * Lightweight backend API (health endpoint)
 * Simple frontend UI
 * Built and tested locally before deployment
 
-### 2. GitOps Deployment with ArgoCD
+2. GitOps Deployment with ArgoCD
 
 * Automatic sync on every commit
 * Auto-heal & auto-prune enabled
 * Full revision history of cluster state
 * Rollback support
 
-### 3. Helm-Based Kubernetes Configuration
+3. Helm-Based Kubernetes Configuration
 
 * Centralized chart for deployments
 * Controlled replica count
 * Configurable image repository and tags
 * Declarative templates
 
-### 4. CI Workflow (GitHub Actions)
+4. CI Workflow (GitHub Actions)
 
 * Helm linting
 * YAML validation
 * Manifest rendering checks
 * Repository structure checks
 
-### 5. Monitoring & Observability
+5. Monitoring & Observability
 
 * Prometheus for metrics collection
 * Grafana for dashboards
 * Port-forward access for local testing
 
----
 
-## **Architecture Diagram 
-
---
-               ┌────────────┐
-               │ Developer   │
-               └──────┬─────┘
-                      │ git push
-   ┌──────────────────┴───────────────────┐
-   │                                      │
-┌──▼────────────┐                 ┌───────────────┐
-│ GitHub Actions│  CI Validation  │ GitHub Repo   │
-└──┬────────────┘                 └───────┬──────┘
-   │                                      │
-   │ watches repo                         │
-   │                                      │
-┌──▼──────────┐           pull changes   ┌─▼─────────────┐
-│   ArgoCD    │────────────────────────► │ Kubernetes     │
-│  (GitOps)   │         sync + deploy    │ Cluster (K3s)  │
-└──┬──────────┘                          └─┬─────────────┘
-   │ monitoring                             │
-   │                                         │
-┌──▼──────────┐                        ┌────▼─────┐
-│ Prometheus  │                        │ Grafana  │
-└─────────────┘                        └──────────┘
-```
 
 
 
