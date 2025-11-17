@@ -38,13 +38,15 @@ jobs:
             echo "No helm-chart directory"
           fi
 
-      - name: Validate raw YAML in manifests/
+      - name: Validate YAML in manifests
         run: |
           if [ -d "manifests" ]; then
             echo "Validating YAML files in manifests/"
             pip install pyyaml
             python3 << 'PY'
-import glob, yaml, sys
+import glob
+import yaml
+import sys
 
 files = glob.glob("manifests/*.yaml")
 if not files:
