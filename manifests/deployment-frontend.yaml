@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mini-runrun-frontend
+  labels:
+    app: mini-runrun-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mini-runrun-frontend
+  template:
+    metadata:
+      labels:
+        app: mini-runrun-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: ghcr.io/Sandeepsardesi/mini-runrun-frontend:latest
+        ports:
+        - containerPort: 80
