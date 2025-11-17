@@ -1,103 +1,67 @@
-name: CI - build & publish images + update manifests
+name: mini-runrun-gitops-ci
 
-# Run on pushes to main (change branch as needed)
 on:
   push:
-    branches: [ "main", "master" ]
-
-permissions:
-  contents: write         # to commit manifest updates
-  packages: write         # to push to GHCR
-  id-token: write
-  pull-requests: write
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
-  build-and-publish:
+  validate:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
 
     steps:
-    - name: Checkout repo
-      uses: actions/checkout@v4
-      with:
-        persist-credentials: true   # keeps GITHUB_TOKEN available to git
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.15.4
 
-    - name: Login to GitHub Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Lint Helm chart
+        run: |
+          if [ -d "helm-chart" ]; then
+            helm lint helm-chart
+          else
+            echo "No helm-chart directory"
+          fi
 
-    # -------------- Build backend image --------------
-    - name: Build and push backend image
-      uses: docker/build-push-action@v4
-      with:
-        context: ./backend
-        file: ./backend/Dockerfile
-        push: true
-        tags: ghcr.io/sandeepsardesi/mini-runrun-backend:${{ github.sha }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+      - name: Render Helm templates
+        run: |
+          if [ -d "helm-chart" ]; then
+            helm template mini-runrun helm-chart --namespace devsecops-demo > rendered.yaml
+            echo "Helm rendered successfully:"
+            head -n 30 rendered.yaml || true
+          else
+            echo "No helm-chart directory"
+          fi
 
-    # -------------- Build frontend image --------------
-    - name: Build and push frontend image
-      uses: docker/build-push-action@v4
-      with:
-        context: ./frontend
-        file: ./frontend/Dockerfile
-        push: true
-        tags: ghcr.io/sandeepsardesi/mini-runrun-frontend:${{ github.sha }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+      - name: Validate raw YAML in manifests/
+        run: |
+          if [ -d "manifests" ]; then
+            echo "Validating YAML files in manifests/"
+            pip install pyyaml
+            python3 << 'PY'
+import glob, yaml, sys
 
-    # -------------- Update k8s manifests to use new images --------------
-    - name: Configure git for committing
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+files = glob.glob("manifests/*.yaml")
+if not files:
+    print("No manifests found")
+    sys.exit(0)
 
-    - name: Replace image tags in manifests
-      run: |
-        # adjust these paths if your deployment files are elsewhere
-        DEPLOYMENT_MANIFESTS="./manifests/deployment-backend.yaml"
-        FRONT_MANIFEST="./manifests/deployment-frontend.yaml"
+for f in files:
+    print(f"Checking {f}")
+    with open(f, 'r') as fh:
+        try:
+            list(yaml.safe_load_all(fh))
+        except yaml.YAMLError as e:
+            print(f"Error in {f}: {e}")
+            sys.exit(1)
 
-        # sanity - fail if files missing
-        if [[ ! -f "$DEPLOYMENT_MANIFESTS" ]]; then
-          echo "Missing $DEPLOYMENT_MANIFESTS"; ls -la manifests || true; exit 1
-        fi
-
-        # update backend image
-        sed -E -i "s@(ghcr.io/[^:]+/mini-runrun-backend):[a-f0-9]+@\1:${GITHUB_SHA}@g" "$DEPLOYMENT_MANIFESTS" || true
-        # if previous tag was 'latest' or empty, also handle that:
-        sed -E -i "s@(ghcr.io/[^/]+/mini-runrun-backend):latest@\1:${GITHUB_SHA}@g" "$DEPLOYMENT_MANIFESTS" || true
-
-        # update frontend image
-        if [[ -f "$FRONT_MANIFEST" ]]; then
-          sed -E -i "s@(ghcr.io/[^:]+/mini-runrun-frontend):[a-f0-9]+@\1:${GITHUB_SHA}@g" "$FRONT_MANIFEST" || true
-          sed -E -i "s@(ghcr.io/[^/]+/mini-runrun-frontend):latest@\1:${GITHUB_SHA}@g" "$FRONT_MANIFEST" || true
-        fi
-
-        git add "$DEPLOYMENT_MANIFESTS" || true
-        git add "$FRONT_MANIFEST" || true
-
-        if ! git diff --cached --quiet; then
-          git commit -m "ci(images): update images to ${GITHUB_SHA}"
-          # push using token
-          git push origin HEAD:${{ github.ref_name }}
-        else
-          echo "No manifest changes detected."
-        fi
-      env:
-        GITHUB_SHA: ${{ github.sha }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Notify (log)
-      run: echo "Images published and manifests updated (if any). ArgoCD should pick up changes automatically."
-
+print("All manifests validated successfully!")
+PY
+          else:
+            echo "No manifests directory"
+          fi
