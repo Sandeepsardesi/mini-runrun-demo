@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: mini-runrun
 spec:
-  replicas: 4
+  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
       app: mini-runrun
